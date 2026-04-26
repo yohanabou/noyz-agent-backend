@@ -1,24 +1,23 @@
-// =============================================================
-//  BACKEND/SERVER.JS — Proxy sécurisé pour l'API OpenAI
-//  Installation : npm install express cors dotenv
-//  Démarrage : node server.js
-// =============================================================
-
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const https = require("https");
 
 const app = express();
+// Railway injecte automatiquement la variable PORT — ne pas mettre 3001 en dur
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN || "*",
-  methods: ["POST"],
+  origin: "*",  // On accepte tout pour simplifier, tu pourras restreindre plus tard
+  methods: ["POST", "GET"],
 }));
 app.use(express.json({ limit: "16kb" }));
 
-// ── Route principale : reçoit les messages et interroge OpenAI ──
+// Health check — pour vérifier que le serveur tourne
+app.get("/", (_, res) => res.json({ status: "ok", message: "Noyz Agent backend online ✅" }));
+app.get("/health", (_, res) => res.json({ status: "ok" }));
+
+// Route principale chat
 app.post("/chat", async (req, res) => {
   const { messages, systemPrompt, model, temperature, maxTokens } = req.body;
 
@@ -28,7 +27,7 @@ app.post("/chat", async (req, res) => {
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "Clé API non configurée sur le serveur." });
+    return res.status(500).json({ error: "Clé API non configurée." });
   }
 
   const payload = JSON.stringify({
@@ -58,28 +57,20 @@ app.post("/chat", async (req, res) => {
     apiRes.on("end", () => {
       try {
         const parsed = JSON.parse(data);
-        if (parsed.error) {
-          return res.status(502).json({ error: parsed.error.message });
-        }
+        if (parsed.error) return res.status(502).json({ error: parsed.error.message });
         const content = parsed.choices?.[0]?.message?.content || "";
         res.json({ reply: content });
       } catch (e) {
-        res.status(500).json({ error: "Erreur parsing réponse OpenAI" });
+        res.status(500).json({ error: "Erreur parsing OpenAI" });
       }
     });
   });
 
-  apiReq.on("error", (err) => {
-    res.status(500).json({ error: err.message });
-  });
-
+  apiReq.on("error", (err) => res.status(500).json({ error: err.message }));
   apiReq.write(payload);
   apiReq.end();
 });
 
-// ── Health check ──
-app.get("/health", (_, res) => res.json({ status: "ok" }));
-
-app.listen(PORT, () => {
-  console.log(`✅ Serveur chat démarré sur http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Noyz Agent backend démarré sur port ${PORT}`);
 });
