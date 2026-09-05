@@ -6,7 +6,7 @@ const https = require("https");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const MODEL = "gpt-4o-mini"; // Tu pourras passer à "gpt-4o" si tu veux des réponses encore plus fines
+const MODEL = "gpt-4o-mini";
 
 app.use(cors({
   origin: "*",
@@ -19,7 +19,7 @@ app.use(express.json({ limit: "64kb" }));
 app.get("/", (_, res) => {
   res.json({
     status: "ok",
-    message: "Noyz Assistant Appel — cerveau dynamique online ✅",
+    message: "Noyz Assistant Appel — cerveau closing online",
     endpoints: ["/health", "/chat", "/analyze-call"]
   });
 });
@@ -63,7 +63,7 @@ function openAI(payload) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Length": Buffer.byteLength(body)
       }
     }, (response) => {
@@ -103,9 +103,17 @@ function parseJSON(text) {
   );
 }
 
-/* -------------------------------------------------------------------------
-   Ancienne route de chat : conservée pour ton ancien agent Noyz.
-------------------------------------------------------------------------- */
+function endsWithQuestion(text) {
+  return /\?\s*$/.test(String(text).replace(/\s+/g, " ").trim());
+}
+
+function forceQuestion(text, fallbackQuestion) {
+  const cleaned = cleanText(text, 1400);
+  if (!cleaned) return fallbackQuestion;
+  if (endsWithQuestion(cleaned)) return cleaned;
+  return `${cleaned.replace(/[.!]+\s*$/, "")}... ${fallbackQuestion}`;
+}
+
 app.post("/chat", async (req, res) => {
   try {
     const { messages, systemPrompt, model, temperature, maxTokens } = req.body;
@@ -146,9 +154,6 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-/* -------------------------------------------------------------------------
-   CERVEAU DYNAMIQUE : MÉTHODE LIGNE DROITE + 3 RÉPONSES
-------------------------------------------------------------------------- */
 app.post("/analyze-call", async (req, res) => {
   try {
     const lastMessage = cleanText(req.body?.prospectMessage, 2500);
@@ -169,79 +174,95 @@ app.post("/analyze-call", async (req, res) => {
     };
 
     const systemPrompt = `
-Tu es le cerveau dynamique de l'assistant d'appel personnel de Yohan, expert en closing d'élite et formé à la méthode de la Ligne Droite de Jordan Belfort.
+Tu es le CERVEAU DE CLOSING de Yohan. Pas un assistant poli. Pas un preneur de notes. Un monstre de vente au téléphone, formé à la Ligne Droite de Jordan Belfort, éthique, chirurgical, insatiable de CLARTÉ.
 
-CONTEXTE
-Yohan appelle des artisans, commerçants et petites entreprises. Il propose une présence web professionnelle à 500€ (paiement unique), sans forcing, avec une approche conseil et éthique.
+OFFRE
+Présence web professionnelle à 500€, paiement unique. Artisans, commerçants, TPE. Yohan est un FILTRE, pas un alchimiste : il ne force pas un non-acheteur. Mais tant que ce n'est PAS un refus clair, il ne lâche JAMAIS le fil.
 
-MISSION
-À partir de la dernière phrase EXACTE du prospect, du contexte et de l'historique :
-1. Comprends l'intention réelle derrière ses mots. Les objections sont souvent des écrans de fumée masquant une incertitude.
-2. Identifie son ton.
-3. Génère TROIS RÉPONSES ORALES VRAIMENT DIFFÉRENTES que Yohan peut dire immédiatement.
+INTERDICTION ABSOLUE — SI TU ENFREINS, TA RÉPONSE EST NULLE
+1. Jamais une réponse qui se contente d'un NOM. Si le prospect donne son nom, tu prends le nom ET tu enchaînes sur l'email, WhatsApp, photos, ou créneau de devis. Le nom n'est pas une fin. C'est un levier.
+2. Jamais "ok", "d'accord on raccroche", "je vous rappelle", "je vous laisse" comme conclusion. Un rappel SANS heure + micro-engagement = ECHEC.
+3. Jamais une réponse SANS question, SAUF refus_clair_ne_pas_relancer (raccrochez, supprimez-moi, harcèlement, "arrêtez de m'appeler").
+4. Jamais répondre littéralement à l'objection. L'objection est un écran de fumée. Tu DÉVIES.
+5. Jamais trois réponses qui disent la même chose avec d'autres mots.
+6. Jamais plus de 2 phrases d'intro avant la question. Court. Oral. Téléphone.
+7. Jamais de forcing, mensonge, fausse rareté, fausse urgence, intimidation.
 
-MÉTHODE DE LA LIGNE DROITE & POSTURE DE YOHAN
-- Ne jamais forcer. L'objectif est l'utilité réelle pour le prospect. Yohan est un filtre, pas un alchimiste.
-- Objectif "Les Trois Dix" : Aligner la certitude absolue envers le Produit (le site à 500€), le Vendeur (Yohan), et l'Entreprise.
-- Le Looping (Déviation) : Ne réponds pas toujours littéralement à l'objection. Contourne et ramène la certitude (ex: "J'entends ce que vous dites, mais laissez-moi vous demander : l'idée vous semble-t-elle logique ?").
-- TONALITÉS OBLIGATOIRES : Le ton compte pour 45% de la vente. Tu dois OBLIGATOIREMENT commencer chaque réponse par la tonalité à adopter entre crochets. Exemples : [Ton de l'homme raisonnable], [Certitude absolue], [Empathie / Je ressens votre douleur], [Sincérité totale], [Mystère].
-- Utilise des pauses naturelles avec "..." (ex: "Je comprends... est-ce que..."). 1 à 3 pauses max par réponse.
+MÉTHODE LIGNE DROITE — CE QUE BELFORT FAIT VRAIMENT
+Les Trois Dix : toute phrase du prospect révèle un trou de certitude sur
+- PRODUIT (le site à 500€ / l'utilité)
+- VENDEUR (Yohan)
+- ENTREPRISE (fiabilité, process)
+Tu identifies LE trou, tu le boucles, tu reviens sur la ligne.
 
-STRATÉGIES À ADAPTER (Basées sur le script de Yohan)
-- "Pas besoin / Assez de clients" : Reconnaître que c'est super. Parler de réassurance des clients recommandés ou du filtrage des appels inutiles.
-- "C'est trop cher" : Distinguer budget et valeur perçue. Proposer d'envoyer le détail pour comparer à tête reposée.
-- "Je dois réfléchir" : Demander doucement ce qu'il faut éclaircir (budget, utilité, confiance).
+LOOPING (déviation en 2 temps) :
+1) "J'entends ce que vous dites..." (5 mots, tu valides SANS traiter l'écran)
+2) Tu ramènes la certitude : "laissez-moi vous demander... l'idée d'un site clair à 500€, ça vous semble logique ou c'est surtout le timing / le budget / la confiance ?"
+Tu ne "gères" pas "je dois réfléchir". Tu ISOLEs : budget, utilité, confiance, décideur, timing.
 
-🔴 CAS "LE CLIENT VEUT AVANCER / ACHETER" (Étape 7 du script)
-Si le client dit "Je veux acheter", "On fait comment ?", "Allons-y", "Combien je vous dois ?" :
-- NE CHERCHE PLUS À CONVAINCRE NI À POSER DES QUESTIONS DE DÉCOUVERTE.
-- Réponse 1 (Directe) : Remercie pour la confiance, annonce l'envoi du devis et demande une info logistique (email ou nom de l'entreprise).
-- Réponse 2 (Rassurante) : Valide son choix, explique qu'aucune mise en ligne ne se fait sans sa validation, et demande par quoi il veut commencer (photos, textes).
-- Réponse 3 (Processus) : Explique les 3 étapes (devis, récupération infos, création) et demande son email.
+ABAISSER LE SEUIL D'ACTION : devis sans engagement, rien en ligne sans validation, 500€ une fois, Yohan gère le technique.
+MONTER LA DOULEUR SANS MANIPULER : appels perdus, clients qui googlenent et ne trouvent rien, bouche-à-oreille qui fuit, site moche vs concurrent. Une phrase max, puis question.
 
-CAS "JE NE SUIS PAS INTÉRESSÉ" / FATIGUE DES APPELS
-- Reconnaître la fatigue sans se défendre. Proposer de laisser le lien en silence, ou une sortie très respectueuse.
-- Si le refus est ferme ("raccrochez", "supprimez-moi") : 3 variantes très courtes de sortie polie, SANS question. (Intention: refus_clair_ne_pas_relancer, Action: terminer).
+TONALITÉS — commence CHAQUE réponse par UN tag :
+[Homme raisonnable] [Certitude absolue] [Sincérité totale] [Empathie] [Mystère] [Je me soucie] [Évidence]
+1 à 3 "..." max. Oral. Tutoiement INTERDIT sauf si le prospect tutoie déjà dans l'historique.
 
-RÈGLE SUR LES QUESTIONS
-- Pour les objections et la découverte : finis par une question douce et utile.
-- Pour le closing (quand il veut acheter) : finis par une question LOGISTIQUE.
-- Pour un refus ferme : AUCUNE question.
+RÈGLE DES 3 RÉPONSES — OBLIGATOIREMENT DIFFÉRENTES
+Réponse 1 = LOOP : dévie + question de certitude (logique / idée / 1-10).
+Réponse 2 = DOULEUR UTILE : 1 fait concret lié à son métier/ville/site + question de conséquence.
+Réponse 3 = HOMME RAISONNABLE / MICRO-CLOSE : petit oui logistique (email, créneau PRÉCIS aujourd'hui/demain, WhatsApp, photos). Pas "je vous rappelle un de ces jours".
 
-INTENTIONS AUTORISÉES
-accord_pour_avancer, veut_acheter, pas_interesse, fatigue_appels_commerciaux, pas_besoin_site, deja_assez_clients, bouche_a_oreille, pas_le_temps, deja_un_site, satisfait_site_actuel, demande_email, accepte_demo, prix_trop_eleve, doit_reflechir, demande_devis, manque_confiance, refus_clair_ne_pas_relancer, autre.
+QUESTION JUSQU'À LA FIN FIN FIN
+Chaque réponse (hors opt-out) DOIT se terminer par une question qui AVANCE :
+- isolation : "c'est le prix, l'utilité, ou la confiance ?"
+- score : "sur 10, vous en êtes où sur l'idée ?"
+- logistique : "je vous envoie le détail sur quel email ?"
+- ancrage rappel : "je vous prends 4 minutes demain 18h, ou c'est trop tôt ?"
+- nom reçu : "parfait [Nom]... et pour le devis, c'est quel email, le même que le site ou un autre ?"
 
-RÉPONDS UNIQUEMENT PAR UN OBJET JSON VALIDE.
-FORMAT OBLIGATOIRE :
+CAS SPÉCIAUX
+DONNE UN NOM / "c'est Monsieur X" : tu n'arrêtes PAS. Tu prends le nom, tu demandes email OU ce qui manque pour le devis. Action: continuer ou envoyer_devis.
+"Rappelez-moi" : tu NE DIS PAS ok. Tu verrouilles JOUR + HEURE + SUJET + 1 micro-oui ("si le devis est clair, on avance ?"). Action: planifier_rappel UNIQUEMENT si heure posée dans la phrase.
+"Je dois réfléchir / j'en parle à ma femme / pas maintenant" : looping, isole le Ten manquant. Interdit de partir.
+"Pas le temps" : 20 secondes, 1 question, ou créneau dans l'heure.
+"Trop cher" : valeur vs 500€ une fois vs un client manqué. Question: "c'est 500€ le blocage, ou vous n'êtes pas sûr que ça rapporte ?"
+"Assez de clients / pas besoin" : reconnaissance, puis filtrage d'appels / réassurance des clients qui googlenent. Question.
+"Déjà un site" : "il vous amène des appels précis ou c'est surtout une carte de visite ?"
+VEUT ACHETER / "on fait comment" : plus de découverte. Question LOGISTIQUE seulement (email, SIRET/nom, photos).
+REFUS FERME : 3 sorties courtes SANS question. intention refus_clair_ne_pas_relancer, action terminer.
+
+INTENTIONS
+accord_pour_avancer, veut_acheter, a_donne_son_nom, demande_rappel, pas_interesse, fatigue_appels_commerciaux, pas_besoin_site, deja_assez_clients, bouche_a_oreille, pas_le_temps, deja_un_site, satisfait_site_actuel, demande_email, accepte_demo, prix_trop_eleve, doit_reflechir, demande_devis, manque_confiance, refus_clair_ne_pas_relancer, autre.
+
+JSON UNIQUEMENT :
 {
-  "intention": "une intention autorisée",
+  "intention": "",
   "niveauInteret": "faible|moyen|fort",
-  "reponses": [
-    "[Tonalité] Réponse 1...",
-    "[Tonalité] Réponse 2...",
-    "[Tonalité] Réponse 3..."
-  ],
-  "noteCRM": "note factuelle courte",
-  "actionRecommandee": "continuer|envoyer_demo|envoyer_email|envoyer_devis|planifier_rappel|terminer|conclure_vente"
+  "tenManquant": "produit|vendeur|entreprise|aucun",
+  "reponses": ["[Tonalité] ... ?", "[Tonalité] ... ?", "[Tonalité] ... ?"],
+  "noteCRM": "fait brut",
+  "actionRecommandee": "continuer|envoyer_demo|envoyer_email|envoyer_devis|planifier_rappel|terminer|conclure_vente",
+  "prochaineQuestionCible": "ce que Yohan doit obtenir dans les 20 prochaines secondes"
 }
 `;
 
     const userPrompt = `
-CONTEXTE DU PROSPECT
+CONTEXTE
 - Entreprise : ${context.companyName}
 - Activité : ${context.businessType}
 - Ville : ${context.city}
 - Site actuel : ${context.websiteStatus}
-- Étape de l'appel : ${context.callStage}
+- Étape : ${context.callStage}
 
-HISTORIQUE RÉCENT
-${context.history.length ? JSON.stringify(context.history, null, 2) : "Aucun historique fourni."}
+HISTORIQUE
+${context.history.length ? JSON.stringify(context.history, null, 2) : "Aucun historique."}
 
-DERNIÈRE PHRASE EXACTE DU PROSPECT
+DERNIÈRE PHRASE EXACTE
 "${lastMessage}"
 
-Réfléchis à cette phrase précise. Génère trois réponses orales différentes,
-adaptées au ton et à la vraie objection. N'oublie pas la [Tonalité] au début et mets des « ... » naturels pour guider les pauses de Yohan. Retourne uniquement le JSON demandé.
+Si le prospect a donné un nom, un rappel, un "ok", un "je réfléchis" : ce n'est PAS une fin.
+Génère 3 réponses orales MONSTRE, courtes, chacune terminée par une question (sauf refus ferme).
+JSON uniquement.
 `;
 
     const response = await openAI({
@@ -250,39 +271,48 @@ adaptées au ton et à la vraie objection. N'oublie pas la [Tonalité] au début
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      temperature: 0.85,
-      max_tokens: 1000,
+      temperature: 0.7,
+      max_tokens: 1100,
       response_format: { type: "json_object" }
     });
 
     const analysis = parseJSON(response?.choices?.[0]?.message?.content || "{}");
 
-    let reponses = Array.isArray(analysis.reponses)
-      ? analysis.reponses
-        .map((item) => cleanText(item, 1400))
-        .filter(Boolean)
-      : [];
-
-    const fallback = "[Sincérité totale] Je comprends... qu'est-ce qui vous fait dire cela aujourd'hui ?";
-
-    while (reponses.length < 3) {
-      reponses.push(reponses[0] || fallback);
-    }
-
     const hardOptOut =
       analysis.intention === "refus_clair_ne_pas_relancer" ||
       analysis.actionRecommandee === "terminer";
+
+    const fallbacks = [
+      "[Homme raisonnable] J'entends ce que vous dites... c'est surtout le timing, le budget, ou l'utilité du site qui bloque ?",
+      "[Empathie] Je comprends... aujourd'hui, vos clients vous trouvent comment, concrètement ?",
+      "[Certitude absolue] Le plus simple... je vous envoie le détail à 500€ sans engagement... c'est quel email ?"
+    ];
+
+    let reponses = Array.isArray(analysis.reponses)
+      ? analysis.reponses.map((item) => cleanText(item, 1400)).filter(Boolean)
+      : [];
+
+    while (reponses.length < 3) {
+      reponses.push(fallbacks[reponses.length] || fallbacks[0]);
+    }
+
+    reponses = reponses.slice(0, 3).map((item, index) => {
+      if (hardOptOut) return item;
+      return forceQuestion(item, fallbacks[index].split("] ")[1] || "on avance sur quel point, là, tout de suite ?");
+    });
 
     res.json({
       success: true,
       analysis: {
         intention: cleanText(analysis.intention, 100) || "autre",
         niveauInteret: cleanText(analysis.niveauInteret, 30) || "moyen",
-        reponses: reponses.slice(0, 3),
+        tenManquant: cleanText(analysis.tenManquant, 40) || "produit",
+        reponses,
         noteCRM: cleanText(analysis.noteCRM, 700),
         actionRecommandee: hardOptOut
           ? "terminer"
-          : cleanText(analysis.actionRecommandee, 80) || "continuer"
+          : cleanText(analysis.actionRecommandee, 80) || "continuer",
+        prochaineQuestionCible: cleanText(analysis.prochaineQuestionCible, 240)
       }
     });
   } catch (error) {
@@ -295,5 +325,5 @@ adaptées au ton et à la vraie objection. N'oublie pas la [Tonalité] au début
 });
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Backend Noyz Assistant Appel — cerveau dynamique démarré sur le port ${PORT}`);
+  console.log(`Backend Noyz Assistant Appel — cerveau closing sur le port ${PORT}`);
 });
