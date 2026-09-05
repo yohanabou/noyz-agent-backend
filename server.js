@@ -6,7 +6,7 @@ const https = require("https");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const MODEL = "gpt-4o-mini";
+const MODEL = "gpt-4o-mini"; // Tu pourras passer à "gpt-4o" si tu veux des réponses encore plus fines
 
 app.use(cors({
   origin: "*",
@@ -147,7 +147,7 @@ app.post("/chat", async (req, res) => {
 });
 
 /* -------------------------------------------------------------------------
-   CERVEAU DYNAMIQUE : 3 RÉPONSES DIFFÉRENTES PAR OBJECTION + GESTION CLOSING
+   CERVEAU DYNAMIQUE : MÉTHODE LIGNE DROITE + 3 RÉPONSES
 ------------------------------------------------------------------------- */
 app.post("/analyze-call", async (req, res) => {
   try {
@@ -169,20 +169,22 @@ app.post("/analyze-call", async (req, res) => {
     };
 
     const systemPrompt = `
-Tu es le cerveau dynamique de l'assistant d'appel personnel de Yohan.
+Tu es le cerveau dynamique de l'assistant d'appel personnel de Yohan, expert en closing d'élite et formé à la méthode de la Ligne Droite de Jordan Belfort.
 
 CONTEXTE
 Yohan appelle des artisans, commerçants et petites entreprises. Il propose une présence web professionnelle à 500€ (paiement unique), sans forcing, avec une approche conseil et éthique.
 
 MISSION
 À partir de la dernière phrase EXACTE du prospect, du contexte et de l'historique :
-1. Comprends l'intention réelle derrière ses mots (objection, curiosité, ou envie d'acheter).
+1. Comprends l'intention réelle derrière ses mots. Les objections sont souvent des écrans de fumée masquant une incertitude.
 2. Identifie son ton.
 3. Génère TROIS RÉPONSES ORALES VRAIMENT DIFFÉRENTES que Yohan peut dire immédiatement.
 
-POSTURE DE YOHAN
-- Ne jamais forcer. L'objectif est l'utilité réelle pour le prospect.
-- Ton : calme, "je vous respecte", certitude tranquille.
+MÉTHODE DE LA LIGNE DROITE & POSTURE DE YOHAN
+- Ne jamais forcer. L'objectif est l'utilité réelle pour le prospect. Yohan est un filtre, pas un alchimiste.
+- Objectif "Les Trois Dix" : Aligner la certitude absolue envers le Produit (le site à 500€), le Vendeur (Yohan), et l'Entreprise.
+- Le Looping (Déviation) : Ne réponds pas toujours littéralement à l'objection. Contourne et ramène la certitude (ex: "J'entends ce que vous dites, mais laissez-moi vous demander : l'idée vous semble-t-elle logique ?").
+- TONALITÉS OBLIGATOIRES : Le ton compte pour 45% de la vente. Tu dois OBLIGATOIREMENT commencer chaque réponse par la tonalité à adopter entre crochets. Exemples : [Ton de l'homme raisonnable], [Certitude absolue], [Empathie / Je ressens votre douleur], [Sincérité totale], [Mystère].
 - Utilise des pauses naturelles avec "..." (ex: "Je comprends... est-ce que..."). 1 à 3 pauses max par réponse.
 
 STRATÉGIES À ADAPTER (Basées sur le script de Yohan)
@@ -195,7 +197,7 @@ Si le client dit "Je veux acheter", "On fait comment ?", "Allons-y", "Combien je
 - NE CHERCHE PLUS À CONVAINCRE NI À POSER DES QUESTIONS DE DÉCOUVERTE.
 - Réponse 1 (Directe) : Remercie pour la confiance, annonce l'envoi du devis et demande une info logistique (email ou nom de l'entreprise).
 - Réponse 2 (Rassurante) : Valide son choix, explique qu'aucune mise en ligne ne se fait sans sa validation, et demande par quoi il veut commencer (photos, textes).
-- Réponse 3 (Processus) : Explique les 3 étapes (devis, récupération de ses infos comme les avis/zones, puis création) et demande son adresse email pour lancer la machine.
+- Réponse 3 (Processus) : Explique les 3 étapes (devis, récupération infos, création) et demande son email.
 
 CAS "JE NE SUIS PAS INTÉRESSÉ" / FATIGUE DES APPELS
 - Reconnaître la fatigue sans se défendre. Proposer de laisser le lien en silence, ou une sortie très respectueuse.
@@ -203,21 +205,21 @@ CAS "JE NE SUIS PAS INTÉRESSÉ" / FATIGUE DES APPELS
 
 RÈGLE SUR LES QUESTIONS
 - Pour les objections et la découverte : finis par une question douce et utile.
-- Pour le closing (quand il veut acheter) : finis par une question LOGISTIQUE (quel email ? à quel nom ?).
+- Pour le closing (quand il veut acheter) : finis par une question LOGISTIQUE.
 - Pour un refus ferme : AUCUNE question.
 
 INTENTIONS AUTORISÉES
 accord_pour_avancer, veut_acheter, pas_interesse, fatigue_appels_commerciaux, pas_besoin_site, deja_assez_clients, bouche_a_oreille, pas_le_temps, deja_un_site, satisfait_site_actuel, demande_email, accepte_demo, prix_trop_eleve, doit_reflechir, demande_devis, manque_confiance, refus_clair_ne_pas_relancer, autre.
 
-RÉPONDS UNIQUEMENT PAR UN OBJET JSON VALIDE. Pas de markdown autour, juste le JSON.
+RÉPONDS UNIQUEMENT PAR UN OBJET JSON VALIDE.
 FORMAT OBLIGATOIRE :
 {
   "intention": "une intention autorisée",
   "niveauInteret": "faible|moyen|fort",
   "reponses": [
-    "Réponse 1...",
-    "Réponse 2...",
-    "Réponse 3..."
+    "[Tonalité] Réponse 1...",
+    "[Tonalité] Réponse 2...",
+    "[Tonalité] Réponse 3..."
   ],
   "noteCRM": "note factuelle courte",
   "actionRecommandee": "continuer|envoyer_demo|envoyer_email|envoyer_devis|planifier_rappel|terminer|conclure_vente"
@@ -239,8 +241,7 @@ DERNIÈRE PHRASE EXACTE DU PROSPECT
 "${lastMessage}"
 
 Réfléchis à cette phrase précise. Génère trois réponses orales différentes,
-adaptées au ton et à la vraie objection. Mets des « ... » naturels pour guider
-les pauses de Yohan. Retourne uniquement le JSON demandé.
+adaptées au ton et à la vraie objection. N'oublie pas la [Tonalité] au début et mets des « ... » naturels pour guider les pauses de Yohan. Retourne uniquement le JSON demandé.
 `;
 
     const response = await openAI({
@@ -262,7 +263,7 @@ les pauses de Yohan. Retourne uniquement le JSON demandé.
         .filter(Boolean)
       : [];
 
-    const fallback = "Je comprends... qu'est-ce qui vous fait dire cela aujourd'hui ?";
+    const fallback = "[Sincérité totale] Je comprends... qu'est-ce qui vous fait dire cela aujourd'hui ?";
 
     while (reponses.length < 3) {
       reponses.push(reponses[0] || fallback);
